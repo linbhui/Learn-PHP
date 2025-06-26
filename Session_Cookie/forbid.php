@@ -1,0 +1,2 @@
+<?php
+echo "YOU ARE NOT AUTHORIZED";
