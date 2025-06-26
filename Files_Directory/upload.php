@@ -1,69 +1,72 @@
 <?php
 session_start();
 
-if (!isset($_FILES["uploadingFile"])) {
-    header("Location: uploadForm.php");
-}
-
 $target_dir = "uploads/";
-$target_file = $target_dir . basename($_FILES["uploadingFile"]["name"]);
-$imageFileType = pathinfo($target_file, PATHINFO_EXTENSION);
+$files = glob("uploads/*");
 $success = $fail = "";
 $upload = true;
 
-if (isset($_POST["submit"])) {
-    $check = getimagesize($_FILES["uploadingFile"]["tmp_name"]);
-    if ($check !== false) {
-        $success = "File is an image - " . $check["mime"] . ".";
-    } else {
-        $fail = "File is not an image.";
-        echo "File is not an image.";
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $target_file = $target_dir . basename($_FILES["uploadingFile"]["name"]);
+    $imageFileType = pathinfo($target_file, PATHINFO_EXTENSION);
+
+    // Delete uploaded file
+    if (isset($_POST["delete"])) {
+        unlink($_POST["delete"]);
     }
-} elseif (isset($_POST["button"])) {
-    unlink("uploads/");
-}
 
-if (file_exists($target_file)) {
-    $fail = "File already exists.";
-    $upload = false;
-}
-
-if ($_FILES["uploadingFile"]["size"] > 2000000) {
-    $fail = "File is too large.";
-    $upload = false;
-}
-
-if ($imageFileType != "jpg" && $imageFileType != "png") {
-    $fail = "Only JPG, PNG files are allowed.";
-    $upload = false;
-}
-
-if ($upload) {
-    if (move_uploaded_file($_FILES["uploadingFile"]["tmp_name"], $target_file)) {
-        $success = "File uploaded successfully.";
-    } else {
-        $fail = "Could not upload file.";
+    // Validate existence, type, limit
+    if (file_exists($target_file)) {
+        $fail = "File already exists.";
+        $upload = false;
     }
-}
 
-function addUpload() {
-    $upload = "uploads/";
-    if (is_dir($upload)) {
-        if ($dh = opendir($upload)) {
-            while (($file = readdir($dh)) !== false) {
-                if ($file != "." && $file != "..") {
-                    echo "<span class='uploaded'><a href='". $upload.$file ."'>". $file ."</a></span><br>";
-                }
+    if ($_FILES["uploadingFile"]["size"] > 2000000) {
+        $fail = "File is too large.";
+        $upload = false;
+    }
 
-            }
-            closedir($dh);
+    if ($imageFileType != "jpg" && $imageFileType != "png") {
+        $fail = "Only JPG, PNG files are allowed.";
+        $upload = false;
+    }
+
+    // Save to directory
+    if ($upload) {
+        if (move_uploaded_file($_FILES["uploadingFile"]["tmp_name"], $target_file)) {
+            $success = "File uploaded successfully.";
+        } else {
+            $fail = "Could not upload file.";
         }
     }
-    return;
+} else {
+    // Delete all files when session ends - restart the page
+    foreach ($files as $file) {
+        if (is_file($file)) {
+            unlink($file);
+        }
+    }
+    session_destroy();
 }
 
+// Prints uploaded file & delete button
+function addUpload():void {
+    $upload = "uploads/";
+    if (is_dir($upload)) {
+        if ($dir_handle = opendir($upload)) {
+            while (($file = readdir($$dir_handle)) !== false) {
+                if ($file != "." && $file != "..") {
+                    echo "<span class='uploaded'><a href='". $upload.$file ."'>". $file ."</a></span>";
+                    echo "<button type='submit' name='delete' value='". $upload.$file ."'>Delete</button><br>";
+                }
+            }
+            closedir($dir_handle);
+        }
+    }
+}
 ?>
 
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -77,7 +80,6 @@ function addUpload() {
     <span class="success"><?php echo $success ?></span>
     <span class="fail"><?php echo $fail ?></span><br><br>
     <?php addUpload() ?>
-    <button type="button" formaction="upload.php" formmethod="post">Delete</button>
 </form>
 </body>
 </html>
